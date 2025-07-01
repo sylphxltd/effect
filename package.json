@@ -28,7 +28,6 @@
   },
   "homepage": "https://github.com/sylphxltd/effect.dart#readme",
   "devDependencies": {
-    "@rollup/rollup-win32-x64-msvc": "^4.44.1",
     "vitepress": "^1.6.3"
   }
 }
