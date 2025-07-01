@@ -104,14 +104,11 @@ firebase_options.dart
 # Analysis
 .dartServer
 
-# Node.js / npm (for documentation)
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-# package-lock.json - Keep this for CI/CD
-
-# VitePress
+# VitePress documentation
+docs/node_modules/
+docs/npm-debug.log*
+docs/yarn-debug.log*
+docs/yarn-error.log*
 docs/.vitepress/dist/
 docs/.vitepress/cache/
 .temp/
