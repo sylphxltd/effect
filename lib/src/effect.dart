@@ -42,11 +42,12 @@ abstract class Effect<A, E, R> {
   /// Creates an effect that requires a specific service from the context
   static Effect<A, Never, A> service<A extends Object>() => _Service<A>();
 
-  /// Creates an effect from an Iterable generator (like Effect-TS yield*)
-  /// This allows you to yield Effects in a functional way using sync* and yield*
+  /// Creates an effect from an Iterable generator using Dart's yield syntax
+  /// Unlike Effect-TS, this doesn't return intermediate results, but executes effects in sequence
   static Effect<A, Object, Never> gen<A>(
     Iterable<Effect> Function() generator
   ) => _IterableGen(generator);
+
 
   /// Maps the success value of this effect
   Effect<B, E, R> map<B>(B Function(A) f) => _Map(this, f);
@@ -440,3 +441,4 @@ class _Either<A, E, R> extends Effect<Either<E, A>, Never, R> {
     };
   }
 }
+

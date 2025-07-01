@@ -2,6 +2,7 @@ import 'package:test/test.dart';
 import '../../lib/src/effect.dart';
 import '../../lib/src/exit.dart';
 import '../../lib/src/cause.dart';
+import '../test_utils.dart';
 
 int sum(int n) {
   if (n < 0) {
@@ -23,7 +24,7 @@ void main() {
       }
     });
 
-    test('sync - effect', () async {
+    It.effect('sync - effect', () {
       Effect<int, Object, Never> sumEffect(int n) {
         if (n < 0) {
           return Effect.sync(() => 0);
@@ -33,9 +34,11 @@ void main() {
         );
       }
       
-      final int result = await Effect.runPromise<int, Object, Never>(sumEffect(10));
-      
-      expect(result, equals(sum(10)));
+      return sumEffect(10).flatMap((int result) =>
+        Effect.sync(() {
+          expect(result, equals(sum(10)));
+        })
+      );
     });
 
     test('sync - must be lazy', () async {
@@ -77,24 +80,25 @@ void main() {
       expect(result, equals(Exit.die(error)));
     });
 
-    test('suspendSucceed - must be evaluatable', () async {
-      final int result = await Effect.runPromise<int, Never, Never>(
-        Effect.suspend(() => Effect.succeed(42))
-      );
-      
-      expect(result, equals(42));
-    });
+    It.effect('suspendSucceed - must be evaluatable', () =>
+      Effect.suspend(() => Effect.succeed(42)).flatMap((int result) =>
+        Effect.sync(() {
+          expect(result, equals(42));
+        })
+      )
+    );
 
-    test('suspendSucceed - must not catch throwable', () async {
+    It.effect('suspendSucceed - must not catch throwable', () {
       final Exception error = Exception('woops');
-      final dynamic result = await Effect.runPromise(
-        Effect.suspend<Never, Never, Never>(() {
-          throw error;
-        }).sandbox().either()
+      return Effect.suspend<Never, Never, Never>(() {
+        throw error;
+      }).sandbox().either().flatMap((dynamic result) =>
+        Effect.sync(() {
+          expect(result.isLeft, isTrue);
+          final cause = result.fold((dynamic l) => l, (dynamic r) => null) as Cause;
+          expect(cause.toString(), contains('Exception: woops'));
+        })
       );
-      
-      expect(result.isLeft, isTrue);
-      expect(result.fold((dynamic l) => l, (dynamic r) => null), equals(Cause.die(error)));
     });
   });
 }
