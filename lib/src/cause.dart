@@ -17,7 +17,7 @@ sealed class Cause<E> {
       Fail(:final error) => error is Exception 
           ? error 
           : Exception('Effect failed with error: $error'),
-      Die(:final throwable, :final stackTrace) => throwable is Exception
+      Die(:final throwable) => throwable is Exception
           ? throwable
           : Exception('Effect died with throwable: $throwable'),
     };

@@ -1,5 +1,5 @@
 import 'package:test/test.dart';
-import 'package:effect.dart/effect.dart';
+import 'package:effect_dart/effect_dart.dart';
 
 void main() {
   group('Effect Tests', () {

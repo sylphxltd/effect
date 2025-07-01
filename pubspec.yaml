@@ -1,4 +1,4 @@
-name: effect.dart
+name: effect_dart
 description: A powerful Effect library for Dart inspired by Effect-TS, providing functional programming patterns for managing side effects, errors, and dependencies.
 version: 0.1.0
 homepage: https://github.com/shtse8/effect.dart
@@ -15,6 +15,6 @@ dev_dependencies:
 
 # Melos configuration
 melos:
-  name: effect.dart
+  name: effect_dart
   packages:
     - .

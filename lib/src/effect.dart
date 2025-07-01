@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:meta/meta.dart';
 import 'context.dart';
 import 'exit.dart';
 import 'cause.dart';

@@ -1,4 +1,4 @@
-import 'package:effect.dart/effect.dart';
+import 'package:effect_dart/effect_dart.dart';
 
 void main() async {
   print('=== Effect.dart Basic Examples ===\n');

@@ -145,8 +145,8 @@ class Fiber<A, E> {
     ]);
 
     return switch (result) {
-      (0, final exit) => Either.left(exit as Exit<A, E>),
-      (1, final exit) => Either.right(exit as Exit<B, F>),
+      (0, final Exit<Object?, Object?> exit) => Either.left(exit as Exit<A, E>),
+      (1, final Exit<Object?, Object?> exit) => Either.right(exit as Exit<B, F>),
       _ => throw StateError('Unexpected race result'),
     };
   }

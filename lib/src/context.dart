@@ -46,7 +46,7 @@ class Context<R> {
 
   /// Combines this context with another context
   /// Services from [other] will override services of the same type in this context
-  Context<R> merge(Context other) {
+  Context<R> merge(Context<dynamic> other) {
     final newServices = Map<Type, Object>.from(_services);
     newServices.addAll(other._services);
     return Context._(newServices);
