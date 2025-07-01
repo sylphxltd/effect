@@ -37,7 +37,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Either type for functional error handling:
   - `Either<L, R>` with `Left` and `Right` cases
   - Functional operations like `map`, `flatMap`, `fold`
-- Comprehensive test suite covering all major functionality
+- Option type for handling nullable values:
+  - `Option<A>` with `Some` and `None` cases
+  - Safe operations: `map`, `flatMap`, `fold`, `getOrElse`
+  - Utilities: `some`, `none`, `fromNullable`
+- Comprehensive Array utilities (40+ functions):
+  - Constructors: `of`, `empty`, `fromIterable`, `ensure`
+  - Manipulation: `prepend`, `append`, `prependAll`, `appendAll`
+  - Slicing: `take`, `takeRight`, `takeWhile`, `drop`, `dropRight`, `dropWhile`
+  - Access: `get`, `head`, `last`, `tail`, `init`
+  - Queries: `isEmpty`, `isNotEmpty`, `length`, `contains`
+  - Functional: `map`, `filter`, `find`, `some`, `every`, `partition`
+  - Advanced: `zip`, `flatten`, `reduce`, `foldLeft`, `reverse`, `join`
+- Comprehensive test suite covering all major functionality (65 tests)
 - Example code demonstrating library usage
 - Complete API documentation in README.md
 - Melos configuration for project management

@@ -13,3 +13,5 @@ export 'src/runtime.dart';
 export 'src/either.dart';
 export 'src/exit.dart';
 export 'src/cause.dart';
+export 'src/option.dart';
+export 'src/array.dart';

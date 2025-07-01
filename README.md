@@ -10,6 +10,8 @@ A powerful Effect library for Dart inspired by [Effect-TS](https://effect.websit
 - **Dependency Injection**: Type-safe context system for managing dependencies
 - **Concurrency**: Built-in support for concurrent and parallel execution
 - **Composability**: Chain and combine effects using functional operations
+- **Functional Data Types**: Option, Either, Array utilities for functional programming
+- **Array Operations**: Comprehensive array manipulation functions (prepend, append, take, etc.)
 
 ## The Effect Type
 
@@ -192,6 +194,57 @@ final context = Context.empty()
     .add<EmailService>(SmtpEmailService());
 
 final result = await sendWelcomeEmail('user123').runToExit(context);
+```
+
+## Functional Data Types
+
+### Array Operations
+
+```dart
+import 'package:effect_dart/effect_dart.dart';
+
+// Create arrays
+final single = Array.of(42);                    // [42]
+final empty = Array.empty<int>();              // []
+final fromSet = Array.fromIterable({1, 2, 3}); // [1, 2, 3]
+
+// Prepend and append
+final prepended = Array.prepend([2, 3], 1);    // [1, 2, 3]
+final appended = Array.append([1, 2], 3);      // [1, 2, 3]
+
+// Array manipulation
+final numbers = [1, 2, 3, 4, 5];
+final firstTwo = Array.take(numbers, 2);       // [1, 2]
+final lastTwo = Array.takeRight(numbers, 2);   // [4, 5]
+
+// Safe operations with Option
+final tail = Array.tail([1, 2, 3]);           // Some([2, 3])
+final init = Array.init([1, 2, 3]);           // Some([1, 2])
+final emptyTail = Array.tail(<int>[]);         // None()
+```
+
+### Option Type
+
+```dart
+// Create Options
+final some = Option.some(42);                  // Some(42)
+final none = Option.none<int>();              // None()
+final nullable = Option.fromNullable(null);   // None()
+
+// Transform values
+final doubled = some.map((x) => x * 2);       // Some(84)
+final chained = some.flatMap((x) =>
+  x > 0 ? Option.some(x.toString()) : Option.none()); // Some("42")
+
+// Extract values safely
+final value = some.getOrElse(0);              // 42
+final defaulted = none.getOrElse(0);          // 0
+
+// Pattern matching
+final result = some.fold(
+  () => 'No value',
+  (value) => 'Value: $value'
+);
 ```
 
 ## API Reference
