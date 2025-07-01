@@ -362,11 +362,118 @@ final total = BigDecimal.sumAll([$("1.5"), $("2.5"), $("3.0")]); // 7.0
 
 ### Either
 
-- `Either.left<L, R>(L value)` - Left value
-- `Either.right<L, R>(R value)` - Right value
-- `map<R2>(R2 Function(R))` - Transform right
-- `flatMap<R2>(Either<L, R2> Function(R))` - Chain eithers
-- `fold<T>(T Function(L), T Function(R))` - Fold to value
+The `Either<L, R>` type represents a value that can be either a Left (error) or Right (success). It provides a comprehensive API for functional error handling:
+
+```dart
+import 'package:effect_dart/effect_dart.dart';
+
+// Creating Either values
+final success = Either.right(42);
+final failure = Either.left("Error occurred");
+final voidResult = Either.voidValue; // Predefined Right(null)
+
+// Type checking and guards
+print(Either.isEither(success)); // true
+print(success.isRight); // true
+print(failure.isLeft); // true
+
+// Extracting values safely
+final rightOption = Either.getRight(success); // Some(42)
+final leftOption = Either.getLeft(failure); // Some("Error occurred")
+
+// Pattern matching
+final result = success.match(
+  onLeft: (error) => "Failed: $error",
+  onRight: (value) => "Success: $value",
+);
+
+// Transformations
+final doubled = success.map((x) => x * 2); // Right(84)
+final errorMapped = failure.mapLeft((e) => "Prefix: $e"); // Left("Prefix: Error occurred")
+final bothMapped = success.mapBoth(
+  onLeft: (e) => "Error: $e",
+  onRight: (v) => v * 2,
+); // Right(84)
+
+// Chaining operations
+final computed = success
+    .flatMap((x) => x > 0 ? Either.right(x * 2) : Either.left("Invalid"))
+    .andThen((x) => Either.right(x + 1)); // Right(85)
+
+// Filtering
+final filtered = success.filterOrLeft(
+  (x) => x > 50,
+  () => "Value too small",
+); // Left("Value too small")
+
+// Creating from various sources
+final fromNull = Either.fromNullable(null, () => "Was null"); // Left("Was null")
+final fromOption = Either.fromOption(Option.some(10), () => "Was none"); // Right(10)
+
+// Exception handling
+final safe = Either.tryCall(() => int.parse("42")); // Right(42)
+final safeFailed = Either.tryCall(() => int.parse("abc")); // Left(FormatException)
+
+final withCustomError = Either.tryWith(
+  tryFn: () => int.parse("abc"),
+  catchFn: (e) => "Parse error: $e",
+); // Left("Parse error: ...")
+
+// Extracting values
+final value = success.getOrElse(0); // 42
+final valueOrNull = failure.getOrNull(); // null
+final valueOrThrow = success.getOrThrow(); // 42 (would throw for Left)
+
+// Combining multiple Eithers
+final combined = success.zipWith(Either.right(3), (a, b) => a + b); // Right(45)
+
+// Applicative pattern
+final add = (int a) => (int b) => a + b;
+final applied = Either.right(add).ap(Either.right(10)).ap(Either.right(5)); // Right(15)
+
+// Collecting results
+final allResults = Either.all([
+  Either.right(1),
+  Either.right(2),
+  Either.right(3),
+]); // Right([1, 2, 3])
+
+final withFailure = Either.all([
+  Either.right(1),
+  Either.left("error"),
+  Either.right(3),
+]); // Left("error")
+
+// Alternative handling
+final alternative = failure.orElse(() => Either.right(42)); // Right(42)
+
+// Merging when both sides have same type
+final merged = Either.right(42).merge<int>(); // 42
+final mergedLeft = Either.left(24).merge<int>(); // 24
+
+// Utility operations
+final flipped = Either.flip(success); // Left(42)
+```
+
+**Key Either Functions:**
+- `Either.voidValue` - Predefined Right(null)
+- `Either.isEither()` - Type guard
+- `Either.getRight()/getLeft()` - Extract values as Options
+- `isLeft/isRight` - Type checking
+- `flip()` - Swap Left and Right
+- `map()/mapLeft()/mapBoth()` - Transform values
+- `match()` - Pattern matching with callbacks
+- `merge()` - Combine Left and Right into single value
+- `Either.liftPredicate()` - Lift predicate into Either
+- `filterOrLeft()` - Filter with predicate
+- `Either.fromNullable()/fromOption()` - Create from other types
+- `Either.tryCall()/tryWith()` - Exception handling
+- `getOrElse()/getOrNull()/getOrThrow()` - Extract values
+- `andThen()` - Chain computations (alias for flatMap)
+- `ap()` - Applicative apply
+- `zipWith()` - Combine two Eithers
+- `Either.all()` - Collect multiple Eithers
+- `orElse()` - Alternative computation
 
 ## Running Examples
 

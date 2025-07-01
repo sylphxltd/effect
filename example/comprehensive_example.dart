@@ -62,6 +62,103 @@ void main() async {
   
   print('');
 
+  // === Either Type ===
+  print('--- Either Type ---');
+  
+  final success = Either.right(42);
+  final failure = Either.left('Error occurred');
+  final voidResult = Either.voidValue;
+  
+  // Type checking
+  print('Is Either: ${Either.isEither(success)}');
+  print('Is Right: ${success.isRight}');
+  print('Is Left: ${failure.isLeft}');
+  
+  // Pattern matching
+  final result = success.match(
+    onLeft: (error) => 'Failed: $error',
+    onRight: (value) => 'Success: $value',
+  );
+  print('Match result: $result');
+  
+  // Transformations
+  final doubled3 = success.map((x) => x * 2);
+  final errorMapped = failure.mapLeft((e) => 'Prefix: $e');
+  final bothMapped = success.mapBoth(
+    onLeft: (e) => 'Error: $e',
+    onRight: (v) => v * 3,
+  );
+  
+  print('Doubled: ${doubled3.fold((l) => 'Left: $l', (r) => 'Right: $r')}');
+  print('Error mapped: ${errorMapped.fold((l) => 'Left: $l', (r) => 'Right: $r')}');
+  print('Both mapped: ${bothMapped.fold((l) => 'Left: $l', (r) => 'Right: $r')}');
+  
+  // Chaining operations
+  final computed = success
+      .flatMap((x) => x > 0 ? Either.right(x * 2) : Either.left('Invalid'))
+      .andThen((x) => Either.right(x + 1));
+  print('Computed: ${computed.fold((l) => 'Left: $l', (r) => 'Right: $r')}');
+  
+  // Filtering
+  final filtered = success.filterOrLeft(
+    (x) => x > 50,
+    () => 'Value too small',
+  );
+  print('Filtered: ${filtered.fold((l) => 'Left: $l', (r) => 'Right: $r')}');
+  
+  // Exception handling
+  final safe = Either.tryCall(() => int.parse('42'));
+  final safeFailed = Either.tryCall(() => int.parse('abc'));
+  final withCustomError = Either.tryWith(
+    tryFn: () => int.parse('abc'),
+    catchFn: (e) => 'Parse error: ${e.runtimeType}',
+  );
+  
+  print('Safe parse: ${safe.fold((l) => 'Left: $l', (r) => 'Right: $r')}');
+  print('Failed parse: ${safeFailed.fold((l) => 'Left: ${l.runtimeType}', (r) => 'Right: $r')}');
+  print('Custom error: ${withCustomError.fold((l) => 'Left: $l', (r) => 'Right: $r')}');
+  
+  // Extracting values
+  final value = success.getOrElse(0);
+  final valueOrNull = failure.getOrNull();
+  print('Get or else: $value');
+  print('Get or null: $valueOrNull');
+  
+  // Combining multiple Eithers
+  final combined = success.zipWith(Either.right(3), (a, b) => a + b);
+  print('Combined: ${combined.fold((l) => 'Left: $l', (r) => 'Right: $r')}');
+  
+  // Collecting results
+  final allResults = Either.all([
+    Either.right(1),
+    Either.right(2),
+    Either.right(3),
+  ]);
+  print('All results: ${allResults.fold((l) => 'Left: $l', (r) => 'Right: $r')}');
+  
+  final withFailure = Either.all([
+    Either.right(1),
+    Either.left('error'),
+    Either.right(3),
+  ]);
+  print('With failure: ${withFailure.fold((l) => 'Left: $l', (r) => 'Right: $r')}');
+  
+  // Alternative handling
+  final alternative = failure.orElse(() => Either.right(42));
+  print('Alternative: ${alternative.fold((l) => 'Left: $l', (r) => 'Right: $r')}');
+  
+  // Merging when both sides have same type
+  final merged = Either.right(42).merge<int>();
+  final mergedLeft = Either.left(24).merge<int>();
+  print('Merged right: $merged');
+  print('Merged left: $mergedLeft');
+  
+  // Utility operations
+  final flipped = Either.flip(success);
+  print('Flipped: ${flipped.fold((l) => 'Left: $l', (r) => 'Right: $r')}');
+  
+  print('');
+
   // === Effect System ===
   print('--- Effect System ---');
   
