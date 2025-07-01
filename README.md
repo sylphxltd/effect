@@ -1,4 +1,4 @@
-# Effect.dart
+# effect_dart
 
 A powerful Effect library for Dart inspired by [Effect-TS](https://effect.website/), providing functional programming patterns for managing side effects, errors, and dependencies in a type-safe and composable way.
 
@@ -28,7 +28,7 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  effect.dart: ^0.1.0
+  effect_dart: ^0.1.0
 ```
 
 ## Basic Usage
@@ -36,7 +36,7 @@ dependencies:
 ### Creating Effects
 
 ```dart
-import 'package:effect/effect.dart';
+import 'package:effect_dart/effect_dart.dart';
 
 // Success effect
 final success = Effect.succeed(42);
