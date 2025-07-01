@@ -247,6 +247,72 @@ final result = some.fold(
 );
 ```
 
+### BigDecimal
+
+High-precision decimal arithmetic for financial and scientific calculations:
+
+```dart
+import 'package:effect_dart/effect_dart.dart';
+
+// Create BigDecimals
+final price = $("123.456");              // From string
+final quantity = $("2.5");               // Using $ shorthand
+final zero = $("0");                     // Zero
+
+// Type checking
+print(BigDecimal.isBigDecimal(price));   // true
+print(BigDecimal.isBigDecimal("123"));   // false
+
+// Basic arithmetic operations
+final total = BigDecimal.multiply(price, quantity);    // 308.64
+final tax = BigDecimal.multiply(total, $("0.08"));     // 24.6912
+final finalAmount = BigDecimal.sum(total, tax);        // 333.2512
+final discounted = BigDecimal.subtract(total, $("10")); // 298.64
+
+// Safe division with Option type
+final result = BigDecimal.divide($("10"), $("3"));     // Some(3.333...)
+final byZero = BigDecimal.divide($("10"), $("0"));     // None()
+
+// Unsafe division (throws on division by zero)
+final quotient = BigDecimal.unsafeDivide($("15"), $("3")); // 5.0
+
+// Sign operations
+print(BigDecimal.sign($("-5")));         // -1
+print(BigDecimal.sign($("0")));          // 0
+print(BigDecimal.sign($("5")));          // 1
+
+// Precise equality comparison (handles trailing zeros)
+final a = $("1.0");
+final b = $("1.00");
+print(BigDecimal.equals(a, b));          // true (normalized comparison)
+
+// Rounding utilities
+print(BigDecimal.roundTerminal(BigInt.from(4)));  // 0 (don't round up)
+print(BigDecimal.roundTerminal(BigInt.from(5)));  // 1 (round up)
+
+// Remainder operations
+final rem = BigDecimal.remainder($("5"), $("2"));   // Some(1)
+final unsafeRem = BigDecimal.unsafeRemainder($("5"), $("2")); // 1
+
+// Comparison operations
+print(BigDecimal.lessThan($("2"), $("3")));        // true
+print(BigDecimal.greaterThan($("4"), $("3")));     // true
+print(BigDecimal.Order($("1"), $("2")));           // -1
+
+// Utility functions
+print(BigDecimal.isZero($("0")));                  // true
+print(BigDecimal.isInteger($("1.0")));             // true
+print(BigDecimal.isPositive($("1")));              // true
+print(BigDecimal.isNegative($("-1")));             // true
+
+// Bounds checking and clamping
+final inRange = BigDecimal.between($("3"), minimum: $("0"), maximum: $("5")); // true
+final clamped = BigDecimal.clamp($("6"), minimum: $("0"), maximum: $("5"));   // 5
+
+// Aggregation
+final total = BigDecimal.sumAll([$("1.5"), $("2.5"), $("3.0")]); // 7.0
+```
+
 ## API Reference
 
 ### Effect
