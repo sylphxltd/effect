@@ -5,6 +5,9 @@ export default defineConfig({
   description: 'A powerful Effect library for Dart inspired by Effect-TS',
   base: '/effect.dart/',
   
+  // Temporarily ignore dead links while building documentation
+  ignoreDeadLinks: true,
+  
   themeConfig: {
     nav: [
       { text: 'Home', link: '/' },
