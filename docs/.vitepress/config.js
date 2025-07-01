@@ -3,7 +3,7 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   title: 'Effect Dart',
   description: 'A powerful Effect library for Dart inspired by Effect-TS',
-  base: '/effect.dart/',
+  base: '/effect/',
   
   // Temporarily ignore dead links while building documentation
   ignoreDeadLinks: true,
