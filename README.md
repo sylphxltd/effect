@@ -61,6 +61,16 @@ final async = Effect.async(() async {
   return 'Done!';
 });
 
+// Async callback-based effect
+final asyncCallback = Effect.asyncCallback<String>((callback) {
+  Timer(Duration(seconds: 1), () {
+    callback(Effect.succeed('Callback result'));
+  });
+});
+
+// Sleep/delay effect
+final sleep = Effect.sleep(Duration(milliseconds: 500));
+
 // Promise/Future effect
 final promise = Effect.promise(() => Future.value('Promise result'));
 
@@ -124,6 +134,50 @@ final sandboxed = Effect.fail('error').sandbox();
 
 // Convert to Either
 final eitherEffect = Effect.succeed(42).either();
+```
+
+### Async Operations
+
+```dart
+// Callback-based async operations
+final asyncCallback = Effect.asyncCallback<String>((callback) {
+  // Register async operation with callback
+  Timer(Duration(seconds: 1), () {
+    callback(Effect.succeed('Async result'));
+  });
+});
+
+// Sleep/delay operations
+final delayed = Effect.sleep(Duration(milliseconds: 500))
+    .flatMap((_) => Effect.succeed('After delay'));
+
+// Chaining async operations
+final asyncChain = Effect.asyncCallback<int>((cb) {
+      cb(Effect.succeed(1));
+    })
+    .flatMap((n) => Effect.sleep(Duration(milliseconds: 100))
+        .map((_) => n + 1))
+    .flatMap((n) => Effect.asyncCallback<int>((cb) {
+        Future.delayed(Duration(milliseconds: 50), () {
+          cb(Effect.succeed(n * 2));
+        });
+      }));
+
+// Error handling in async operations
+final asyncWithError = Effect.asyncCallback<String>((callback) {
+      Timer(Duration(milliseconds: 10), () {
+        callback(Effect.fail('Async error'));
+      });
+    })
+    .catchAll((error) => Effect.succeed('Recovered from: $error'));
+
+// Combining async and sync operations
+final mixed = Effect.succeed(10)
+    .flatMap((n) => Effect.sleep(Duration(milliseconds: 10))
+        .map((_) => n))
+    .flatMap((n) => Effect.asyncCallback<String>((cb) {
+        cb(Effect.succeed('Result: $n'));
+      }));
 ```
 
 ### Dependency Injection
@@ -401,6 +455,8 @@ final total = BigDecimal.sumAll([$("1.5"), $("2.5"), $("3.0")]); // 7.0
 - `Effect.fail<E>(E error)` - Create failed effect
 - `Effect.sync<A>(A Function())` - Sync computation
 - `Effect.async<A>(Future<A> Function())` - Async computation
+- `Effect.asyncCallback<A>(void Function(callback) register)` - Callback-based async effect
+- `Effect.sleep(Duration)` - Sleep/delay effect
 - `Effect.promise<A>(Future<A> Function())` - Create from Promise/Future
 - `Effect.suspend<A, E, R>(Effect<A, E, R> Function())` - Suspend computation
 - `Effect.service<A>()` - Require service from context
