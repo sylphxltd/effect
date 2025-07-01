@@ -60,6 +60,12 @@ final async = Effect.async(() async {
   await Future.delayed(Duration(seconds: 1));
   return 'Done!';
 });
+
+// Promise/Future effect
+final promise = Effect.promise(() => Future.value('Promise result'));
+
+// Suspended computation (lazy evaluation)
+final suspended = Effect.suspend(() => Effect.succeed('Lazy value'));
 ```
 
 ### Running Effects
@@ -70,6 +76,12 @@ final exit = await effect.runToExit();
 
 // Run unsafely (throws on failure)
 final result = await effect.runUnsafe();
+
+// Run synchronously (for sync effects only)
+final syncExit = Effect.runSyncExit(effect);
+
+// Run as Promise/Future
+final result2 = await Effect.runPromise(effect);
 
 // Using the runtime directly
 final runtime = Runtime.defaultRuntime;
@@ -95,6 +107,23 @@ final recovered = Effect.fail('error')
 // Map errors
 final mappedError = Effect.fail(404)
     .mapError((code) => 'HTTP Error: $code');
+
+// Add tracing spans
+final traced = Effect.sync(() => 'Hello')
+    .withSpan('greeting-operation');
+
+// Pipe through functions
+final piped = Effect.succeed(42)
+    .pipe((effect) => effect.map((x) => x * 2));
+
+// Get effect exit
+final exitEffect = Effect.succeed('value').exit();
+
+// Sandbox errors for type safety
+final sandboxed = Effect.fail('error').sandbox();
+
+// Convert to Either
+final eitherEffect = Effect.succeed(42).either();
 ```
 
 ### Dependency Injection
@@ -194,6 +223,57 @@ final context = Context.empty()
     .add<EmailService>(SmtpEmailService());
 
 final result = await sendWelcomeEmail('user123').runToExit(context);
+```
+
+### Synchronous Execution
+
+For effects that don't require async operations, you can run them synchronously:
+
+```dart
+// Synchronous effects can be run immediately
+final syncEffect = Effect.sync(() => 42);
+final exit = Effect.runSyncExit(syncEffect);
+
+switch (exit) {
+  case Success(:final value):
+    print('Result: $value'); // Result: 42
+  case Failure(:final cause):
+    print('Error: $cause');
+}
+
+// Async effects will fail when run synchronously
+final asyncEffect = Effect.promise(() => Future.value(42));
+final asyncExit = Effect.runSyncExit(asyncEffect);
+// This will be a Failure with "Cannot run async effect synchronously"
+
+// Tracing is preserved in synchronous execution
+final tracedEffect = Effect.promise(() => Future.value(42))
+    .withSpan('async-operation');
+final tracedExit = Effect.runSyncExit(tracedEffect);
+// Error message will include "async-operation: Cannot run async effect synchronously"
+```
+
+### Suspended Effects
+
+Suspended effects provide lazy evaluation and proper error handling:
+
+```dart
+// Lazy evaluation - computation doesn't run until effect is executed
+final lazyEffect = Effect.suspend(() {
+  print('This only prints when effect runs');
+  return Effect.succeed('computed value');
+});
+
+// Exception handling in suspended effects
+final riskyEffect = Effect.suspend(() {
+  if (Random().nextBool()) {
+    throw Exception('Random failure');
+  }
+  return Effect.succeed('success');
+});
+
+final result = await Effect.runPromise(riskyEffect);
+// Will either succeed with 'success' or fail with the exception
 ```
 
 ## Functional Data Types
@@ -318,10 +398,14 @@ final total = BigDecimal.sumAll([$("1.5"), $("2.5"), $("3.0")]); // 7.0
 ### Effect
 
 - `Effect.succeed<A>(A value)` - Create successful effect
-- `Effect.fail<E>(E error)` - Create failed effect  
+- `Effect.fail<E>(E error)` - Create failed effect
 - `Effect.sync<A>(A Function())` - Sync computation
 - `Effect.async<A>(Future<A> Function())` - Async computation
+- `Effect.promise<A>(Future<A> Function())` - Create from Promise/Future
+- `Effect.suspend<A, E, R>(Effect<A, E, R> Function())` - Suspend computation
 - `Effect.service<A>()` - Require service from context
+- `Effect.runSyncExit<A, E, R>(Effect<A, E, R>)` - Run synchronously
+- `Effect.runPromise<A, E, R>(Effect<A, E, R>)` - Run as Promise/Future
 
 #### Instance Methods
 
@@ -329,6 +413,11 @@ final total = BigDecimal.sumAll([$("1.5"), $("2.5"), $("3.0")]); // 7.0
 - `mapError<E2>(E2 Function(E))` - Transform error value
 - `flatMap<B>(Effect<B, E2, R2> Function(A))` - Chain effects
 - `catchAll<E2>(Effect<A, E2, R2> Function(E))` - Handle errors
+- `withSpan(String)` - Add tracing span
+- `pipe<B>(B Function(Effect))` - Pipe through function
+- `exit()` - Get Exit of effect
+- `sandbox()` - Expose failures as typed errors
+- `either()` - Convert to Either type
 - `provideContext(Context<R>)` - Provide context
 - `provideService<S>(S)` - Provide single service
 - `runToExit([Context<R>?])` - Execute and get Exit

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'context.dart';
 import 'exit.dart';
 import 'cause.dart';
+import 'either.dart';
 
 /// The Effect type represents an immutable description of a workflow or operation
 /// that is lazily executed.
@@ -29,6 +30,14 @@ abstract class Effect<A, E, R> {
   /// Creates an effect from an asynchronous computation
   static Effect<A, Object, Never> async<A>(Future<A> Function() computation) =>
       _Async(computation);
+
+  /// Creates an effect from a Promise/Future
+  static Effect<A, Object, Never> promise<A>(Future<A> Function() computation) =>
+      _Async(computation);
+
+  /// Creates an effect that suspends computation
+  static Effect<A, E, R> suspend<A, E, R>(Effect<A, E, R> Function() computation) =>
+      _Suspend(computation);
 
   /// Creates an effect that requires a specific service from the context
   static Effect<A, Never, A> service<A extends Object>() => _Service<A>();
@@ -64,8 +73,71 @@ abstract class Effect<A, E, R> {
     S service,
   ) => _ProvideService<A, E, R, S, R2>(this, service);
 
+  /// Adds a span for tracing
+  Effect<A, E, R> withSpan(String spanName) => _WithSpan(this, spanName);
+
+  /// Pipes this effect through a function
+  B pipe<B>(B Function(Effect<A, E, R>) f) => f(this);
+
+  /// Gets the exit of this effect
+  Effect<Exit<A, E>, Never, R> exit() => _Exit(this);
+
+  /// Sandboxes this effect to expose all failures as typed errors
+  Effect<A, Cause<E>, R> sandbox() => _Sandbox(this);
+
+  /// Converts this effect to an Either
+  Effect<Either<E, A>, Never, R> either() => _Either(this);
+
   /// Runs this effect and returns an Exit
   Future<Exit<A, E>> runToExit([Context<R>? context]);
+
+  /// Runs this effect synchronously and returns an Exit
+  static Exit<A, E> runSyncExit<A, E, R>(Effect<A, E, R> effect) {
+    try {
+      // For sync effects, we can run them immediately
+      if (effect is _Succeed<A>) {
+        return Exit.succeed(effect.value);
+      }
+      if (effect is _Fail<E>) {
+        return Exit.fail(effect.error);
+      }
+      if (effect is _Die) {
+        return Exit.die(effect.throwable);
+      }
+      if (effect is _Sync) {
+        try {
+          final result = (effect as _Sync).computation();
+          return Exit.succeed(result) as Exit<A, E>;
+        } catch (e) {
+          return Exit.die(e) as Exit<A, E>;
+        }
+      }
+      if (effect is _WithSpan) {
+        final spanEffect = effect as _WithSpan;
+        final innerExit = runSyncExit(spanEffect.effect);
+        return switch (innerExit) {
+          Success() => innerExit as Exit<A, E>,
+          Failure(:final cause) => switch (cause) {
+            Fail() => innerExit as Exit<A, E>,
+            Die(:final throwable) => Exit.die('${spanEffect.spanName}: $throwable') as Exit<A, E>,
+          },
+        };
+      }
+      // For async effects, this should be a defect
+      return Exit.die('Cannot run async effect synchronously') as Exit<A, E>;
+    } catch (e) {
+      return Exit.die(e) as Exit<A, E>;
+    }
+  }
+
+  /// Runs this effect as a Promise/Future
+  static Future<A> runPromise<A, E, R>(Effect<A, E, R> effect) async {
+    final exit = await effect.runToExit();
+    return exit.fold(
+      (cause) => throw cause.toException(),
+      (value) => value,
+    );
+  }
 
   /// Runs this effect unsafely, throwing on failure
   Future<A> runUnsafe([Context<R>? context]) async {
@@ -290,4 +362,81 @@ class EffectException implements Exception {
   
   @override
   String toString() => 'EffectException: $cause';
+}
+
+// Additional implementation classes
+
+class _Suspend<A, E, R> extends Effect<A, E, R> {
+  final Effect<A, E, R> Function() computation;
+  const _Suspend(this.computation);
+
+  @override
+  Future<Exit<A, E>> runToExit([Context<R>? context]) async {
+    try {
+      final effect = computation();
+      return await effect.runToExit(context);
+    } catch (e) {
+      return Exit.die(e) as Exit<A, E>;
+    }
+  }
+}
+
+class _WithSpan<A, E, R> extends Effect<A, E, R> {
+  final Effect<A, E, R> effect;
+  final String spanName;
+  const _WithSpan(this.effect, this.spanName);
+
+  @override
+  Future<Exit<A, E>> runToExit([Context<R>? context]) async {
+    final exit = await effect.runToExit(context);
+    return switch (exit) {
+      Success() => exit,
+      Failure(:final cause) => switch (cause) {
+        Fail() => exit,
+        Die(:final throwable) => Exit.die('$spanName: $throwable') as Exit<A, E>,
+      },
+    };
+  }
+}
+
+class _Exit<A, E, R> extends Effect<Exit<A, E>, Never, R> {
+  final Effect<A, E, R> effect;
+  const _Exit(this.effect);
+
+  @override
+  Future<Exit<Exit<A, E>, Never>> runToExit([Context<R>? context]) async {
+    final exit = await effect.runToExit(context);
+    return Exit.succeed(exit);
+  }
+}
+
+class _Sandbox<A, E, R> extends Effect<A, Cause<E>, R> {
+  final Effect<A, E, R> effect;
+  const _Sandbox(this.effect);
+
+  @override
+  Future<Exit<A, Cause<E>>> runToExit([Context<R>? context]) async {
+    final exit = await effect.runToExit(context);
+    return switch (exit) {
+      Success(:final value) => Exit.succeed(value),
+      Failure(:final cause) => Exit.fail(cause),
+    };
+  }
+}
+
+class _Either<A, E, R> extends Effect<Either<E, A>, Never, R> {
+  final Effect<A, E, R> effect;
+  const _Either(this.effect);
+
+  @override
+  Future<Exit<Either<E, A>, Never>> runToExit([Context<R>? context]) async {
+    final exit = await effect.runToExit(context);
+    return switch (exit) {
+      Success(:final value) => Exit.succeed(Either.right(value)),
+      Failure(:final cause) => switch (cause) {
+        Fail(:final error) => Exit.succeed(Either.left(error)),
+        Die() => Exit.die(cause.throwable),
+      },
+    };
+  }
 }

@@ -31,6 +31,15 @@ sealed class Cause<E> {
     };
   }
 
+  /// Pretty prints this cause for debugging
+  static String pretty<E>(Cause<E> cause) {
+    return switch (cause) {
+      Fail(:final error) => 'Fail: $error',
+      Die(:final throwable, :final stackTrace) =>
+          'Die: $throwable${stackTrace != null ? '\n$stackTrace' : ''}',
+    };
+  }
+
   @override
   String toString() {
     return switch (this) {
