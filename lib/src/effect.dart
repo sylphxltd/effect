@@ -48,6 +48,15 @@ abstract class Effect<A, E, R> {
     Iterable<Effect> Function() generator
   ) => _IterableGen(generator);
 
+  /// Creates an async effect that can be resolved via a callback
+  static Effect<A, Object, Never> asyncCallback<A>(
+    void Function(void Function(Effect<A, Object, Never>) callback) register
+  ) => _AsyncCallback(register);
+
+  /// Creates an effect that sleeps for the specified duration
+  static Effect<void, Never, Never> sleep(Duration duration) =>
+    _Sleep(duration);
+
 
   /// Maps the success value of this effect
   Effect<B, E, R> map<B>(B Function(A) f) => _Map(this, f);
@@ -439,6 +448,48 @@ class _Either<A, E, R> extends Effect<Either<E, A>, Never, R> {
         Die() => Exit.die(cause.throwable),
       },
     };
+  }
+}
+
+class _AsyncCallback<A> extends Effect<A, Object, Never> {
+  final void Function(void Function(Effect<A, Object, Never>) callback) register;
+  const _AsyncCallback(this.register);
+
+  @override
+  Future<Exit<A, Object>> runToExit([Context<Never>? context]) async {
+    final completer = Completer<Exit<A, Object>>();
+    
+    void callback(Effect<A, Object, Never> effect) {
+      if (!completer.isCompleted) {
+        effect.runToExit(context).then((exit) {
+          if (!completer.isCompleted) {
+            completer.complete(exit);
+          }
+        }).catchError((error) {
+          if (!completer.isCompleted) {
+            completer.complete(Exit.die(error as Object));
+          }
+        });
+      }
+    }
+    
+    try {
+      register(callback);
+      return await completer.future;
+    } catch (e) {
+      return Exit.die(e);
+    }
+  }
+}
+
+class _Sleep extends Effect<void, Never, Never> {
+  final Duration duration;
+  const _Sleep(this.duration);
+
+  @override
+  Future<Exit<void, Never>> runToExit([Context<Never>? context]) async {
+    await Future.delayed(duration);
+    return Exit.succeed(null);
   }
 }
 
