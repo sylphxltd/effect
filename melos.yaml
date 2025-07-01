@@ -1,0 +1,25 @@
+name: effect
+
+packages:
+  - .
+
+scripts:
+  lint:
+    run: dart analyze --fatal-infos
+    description: Run static analysis for all packages.
+
+  test:
+    run: dart test
+    description: Run `dart test` for all packages.
+
+  format:
+    run: dart format .
+    description: Run `dart format` for all packages.
+
+  format-check:
+    run: dart format --output=none --set-exit-if-changed .
+    description: Run `dart format` checks for all packages.
+
+  clean:
+    run: dart clean
+    description: Clean all packages.

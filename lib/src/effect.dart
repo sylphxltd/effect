@@ -1,0 +1,238 @@
+import 'dart:async';
+import 'package:meta/meta.dart';
+import 'context.dart';
+import 'exit.dart';
+import 'cause.dart';
+
+/// The Effect type represents an immutable description of a workflow or operation
+/// that is lazily executed.
+/// 
+/// Type parameters:
+/// - [A] (Success): The type of value that an effect can succeed with
+/// - [E] (Error): The type of expected errors that can occur
+/// - [R] (Requirements): The contextual data required by the effect
+abstract class Effect<A, E, R> {
+  const Effect();
+
+  /// Creates an effect that succeeds with the given value
+  static Effect<A, Never, Never> succeed<A>(A value) => _Succeed(value);
+
+  /// Creates an effect that fails with the given error
+  static Effect<Never, E, Never> fail<E>(E error) => _Fail(error);
+
+  /// Creates an effect that dies with the given throwable
+  static Effect<Never, Never, Never> die(Object throwable) => _Die(throwable);
+
+  /// Creates an effect from a synchronous computation that might throw
+  static Effect<A, Object, Never> sync<A>(A Function() computation) =>
+      _Sync(computation);
+
+  /// Creates an effect from an asynchronous computation
+  static Effect<A, Object, Never> async<A>(Future<A> Function() computation) =>
+      _Async(computation);
+
+  /// Creates an effect that requires a specific service from the context
+  static Effect<A, Never, A> service<A extends Object>() => _Service<A>();
+
+  /// Maps the success value of this effect
+  Effect<B, E, R> map<B>(B Function(A) f) => _Map(this, f);
+
+  /// Maps the error value of this effect
+  Effect<A, E2, R> mapError<E2>(E2 Function(E) f) => _MapError(this, f);
+
+  /// Flat maps this effect with another effect
+  Effect<B, E2, R2> flatMap<B, E2, R2>(
+    Effect<B, E2, R2> Function(A) f,
+  ) => _FlatMap(this, f);
+
+  /// Catches and recovers from errors
+  Effect<A, E2, R2> catchAll<E2, R2>(
+    Effect<A, E2, R2> Function(E) f,
+  ) => _CatchAll(this, f);
+
+  /// Provides the required context to this effect
+  Effect<A, E, Never> provideContext(Context<R> context) =>
+      _ProvideContext(this, context);
+
+  /// Provides a specific service to this effect
+  Effect<A, E, R2> provideService<S extends Object, R2>(
+    S service,
+  ) => _ProvideService<A, E, R, S, R2>(this, service);
+
+  /// Runs this effect and returns an Exit
+  Future<Exit<A, E>> runToExit([Context<R>? context]);
+
+  /// Runs this effect unsafely, throwing on failure
+  Future<A> runUnsafe([Context<R>? context]) async {
+    final exit = await runToExit(context);
+    return switch (exit) {
+      Success(:final value) => value,
+      Failure(:final cause) => throw cause.toException(),
+    };
+  }
+}
+
+// Internal effect implementations
+
+class _Succeed<A> extends Effect<A, Never, Never> {
+  final A value;
+  const _Succeed(this.value);
+
+  @override
+  Future<Exit<A, Never>> runToExit([Context<Never>? context]) async =>
+      Exit.succeed(value);
+}
+
+class _Fail<E> extends Effect<Never, E, Never> {
+  final E error;
+  const _Fail(this.error);
+
+  @override
+  Future<Exit<Never, E>> runToExit([Context<Never>? context]) async =>
+      Exit.fail(error);
+}
+
+class _Die extends Effect<Never, Never, Never> {
+  final Object throwable;
+  const _Die(this.throwable);
+
+  @override
+  Future<Exit<Never, Never>> runToExit([Context<Never>? context]) async =>
+      Exit.die(throwable);
+}
+
+class _Sync<A> extends Effect<A, Object, Never> {
+  final A Function() computation;
+  const _Sync(this.computation);
+
+  @override
+  Future<Exit<A, Object>> runToExit([Context<Never>? context]) async {
+    try {
+      return Exit.succeed(computation());
+    } catch (e) {
+      return Exit.die(e);
+    }
+  }
+}
+
+class _Async<A> extends Effect<A, Object, Never> {
+  final Future<A> Function() computation;
+  const _Async(this.computation);
+
+  @override
+  Future<Exit<A, Object>> runToExit([Context<Never>? context]) async {
+    try {
+      final result = await computation();
+      return Exit.succeed(result);
+    } catch (e) {
+      return Exit.die(e);
+    }
+  }
+}
+
+class _Service<A extends Object> extends Effect<A, Never, A> {
+  const _Service();
+
+  @override
+  Future<Exit<A, Never>> runToExit([Context<A>? context]) async {
+    if (context == null) {
+      throw StateError('Service $A not provided in context');
+    }
+    final service = context.get<A>();
+    return Exit.succeed(service);
+  }
+}
+
+class _Map<A, B, E, R> extends Effect<B, E, R> {
+  final Effect<A, E, R> effect;
+  final B Function(A) f;
+  const _Map(this.effect, this.f);
+
+  @override
+  Future<Exit<B, E>> runToExit([Context<R>? context]) async {
+    final exit = await effect.runToExit(context);
+    return exit.map(f);
+  }
+}
+
+class _MapError<A, E, E2, R> extends Effect<A, E2, R> {
+  final Effect<A, E, R> effect;
+  final E2 Function(E) f;
+  const _MapError(this.effect, this.f);
+
+  @override
+  Future<Exit<A, E2>> runToExit([Context<R>? context]) async {
+    final exit = await effect.runToExit(context);
+    return exit.mapError(f);
+  }
+}
+
+class _FlatMap<A, B, E, E2, R, R2> extends Effect<B, E2, R2> {
+  final Effect<A, E, R> effect;
+  final Effect<B, E2, R2> Function(A) f;
+  const _FlatMap(this.effect, this.f);
+
+  @override
+  Future<Exit<B, E2>> runToExit([Context<R2>? context]) async {
+    final exit = await effect.runToExit(context as Context<R>?);
+    return switch (exit) {
+      Success(:final value) => await f(value).runToExit(context),
+      Failure(:final cause) => switch (cause) {
+        Fail(:final error) => Exit.die('FlatMap error conversion: $error'),
+        Die(:final throwable, :final stackTrace) => Exit.die(throwable, stackTrace),
+      },
+    };
+  }
+}
+
+class _CatchAll<A, E, E2, R, R2> extends Effect<A, E2, R2> {
+  final Effect<A, E, R> effect;
+  final Effect<A, E2, R2> Function(E) f;
+  const _CatchAll(this.effect, this.f);
+
+  @override
+  Future<Exit<A, E2>> runToExit([Context<R2>? context]) async {
+    final exit = await effect.runToExit(context as Context<R>?);
+    return switch (exit) {
+      Success() => exit as Exit<A, E2>,
+      Failure(:final cause) => switch (cause) {
+        Fail(:final error) => await f(error).runToExit(context),
+        _ => Exit.failCause(cause as Cause<E2>),
+      },
+    };
+  }
+}
+
+class _ProvideContext<A, E, R> extends Effect<A, E, Never> {
+  final Effect<A, E, R> effect;
+  final Context<R> context;
+  const _ProvideContext(this.effect, this.context);
+
+  @override
+  Future<Exit<A, E>> runToExit([Context<Never>? _]) async =>
+      effect.runToExit(context);
+}
+
+class _ProvideService<A, E, R, S extends Object, R2> extends Effect<A, E, R2> {
+  final Effect<A, E, R> effect;
+  final S service;
+  const _ProvideService(this.effect, this.service);
+
+  @override
+  Future<Exit<A, E>> runToExit([Context<R2>? context]) async {
+    final newContext = (context ?? Context.empty()).add(service);
+    return effect.runToExit(newContext as Context<R>);
+  }
+}
+
+/// Utility class for extracting types from Effect
+extension EffectTypes<A, E, R> on Effect<A, E, R> {
+  /// Extract the success type
+  Type get successType => A;
+  
+  /// Extract the error type  
+  Type get errorType => E;
+  
+  /// Extract the requirements type
+  Type get requirementsType => R;
+}
