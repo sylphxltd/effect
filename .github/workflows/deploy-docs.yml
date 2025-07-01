@@ -20,9 +20,7 @@ jobs:
         node-version: '18'
         
     - name: Install dependencies
-      run: |
-        # Install with force to ignore platform-specific dependencies
-        npm install --force --no-optional
+      run: npm install --prefer-offline --no-audit
       
     - name: Build documentation
       run: npm run docs:build
