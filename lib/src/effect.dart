@@ -33,6 +33,12 @@ abstract class Effect<A, E, R> {
   /// Creates an effect that requires a specific service from the context
   static Effect<A, Never, A> service<A extends Object>() => _Service<A>();
 
+  /// Creates an effect from an Iterable generator (like Effect-TS yield*)
+  /// This allows you to yield Effects in a functional way using sync* and yield*
+  static Effect<A, Object, Never> gen<A>(
+    Iterable<Effect> Function() generator
+  ) => _IterableGen(generator);
+
   /// Maps the success value of this effect
   Effect<B, E, R> map<B>(B Function(A) f) => _Map(this, f);
 
@@ -142,6 +148,35 @@ class _Service<A extends Object> extends Effect<A, Never, A> {
   }
 }
 
+class _IterableGen<A> extends Effect<A, Object, Never> {
+  final Iterable<Effect> Function() generator;
+  const _IterableGen(this.generator);
+
+  @override
+  Future<Exit<A, Object>> runToExit([Context<Never>? context]) async {
+    try {
+      A? result;
+      for (final effect in generator()) {
+        final exit = await effect.runToExit(context);
+        if (exit.isFailure) {
+          return exit as Exit<A, Object>;
+        }
+        // Store the last successful result
+        result = exit.fold(
+          (cause) => throw EffectException(cause),
+          (value) => value as A,
+        );
+      }
+      if (result == null) {
+        throw StateError('Generator produced no result');
+      }
+      return Exit.succeed(result);
+    } catch (e) {
+      return Exit.die(e);
+    }
+  }
+}
+
 class _Map<A, B, E, R> extends Effect<B, E, R> {
   final Effect<A, E, R> effect;
   final B Function(A) f;
@@ -234,4 +269,25 @@ extension EffectTypes<A, E, R> on Effect<A, E, R> {
   
   /// Extract the requirements type
   Type get requirementsType => R;
+}
+
+/// Extension to make Effects awaitable within Effect.gen
+extension EffectAwaitable<A, E, R> on Effect<A, E, R> {
+  /// Allows this Effect to be awaited within Effect.gen
+  Future<A> call() async {
+    final exit = await runToExit();
+    return exit.fold(
+      (cause) => throw EffectException(cause),
+      (value) => value,
+    );
+  }
+}
+
+/// Exception thrown when an Effect fails within Effect.gen
+class EffectException implements Exception {
+  final Cause cause;
+  EffectException(this.cause);
+  
+  @override
+  String toString() => 'EffectException: $cause';
 }

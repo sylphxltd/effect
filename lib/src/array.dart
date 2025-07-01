@@ -20,12 +20,24 @@ class Array {
   static List<A> of<A>(A element) => [element];
 
   /// Creates an empty array.
-  /// 
+  ///
   /// Example:
   /// ```dart
   /// Array.empty<int>() // <int>[]
   /// ```
   static List<A> empty<A>() => <A>[];
+
+  /// Creates an array of integers from start (inclusive) to end (exclusive).
+  ///
+  /// Example:
+  /// ```dart
+  /// Array.range(0, 5) // [0, 1, 2, 3, 4]
+  /// Array.range(2, 7) // [2, 3, 4, 5, 6]
+  /// ```
+  static List<int> range(int start, int end) {
+    if (start >= end) return <int>[];
+    return List.generate(end - start, (i) => start + i);
+  }
 
   /// Creates an array from an iterable.
   /// If the iterable is already a List, returns the same reference.
