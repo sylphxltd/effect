@@ -18,10 +18,12 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '18'
-        cache: 'npm'
         
     - name: Install dependencies
-      run: npm ci
+      run: |
+        # Remove platform-specific lockfile and install fresh for Linux
+        rm -f package-lock.json
+        npm install
       
     - name: Build documentation
       run: npm run docs:build
