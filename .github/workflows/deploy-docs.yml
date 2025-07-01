@@ -21,9 +21,8 @@ jobs:
         
     - name: Install dependencies
       run: |
-        # Remove platform-specific lockfile and install fresh for Linux
-        rm -f package-lock.json
-        npm install
+        # Install with force to ignore platform-specific dependencies
+        npm install --force --no-optional
       
     - name: Build documentation
       run: npm run docs:build
